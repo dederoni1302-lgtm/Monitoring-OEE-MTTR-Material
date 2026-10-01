@@ -126,28 +126,46 @@ def get_sheet():
         )
     return gc.open_by_key(SPREADSHEET_ID).worksheet("Data_Harian")
 
-# --- AREA INPUT FORM ---
+# Inisialisasi callback untuk memperbarui berat produk secara otomatis saat produk dipilih
+def update_weight():
+    selected = st.session_state.selected_product
+    if selected == "Other (Lainnya...)":
+        st.session_state.berat_input = "0"
+    else:
+        st.session_state.berat_input = PRODUCT_DATABASE.get(selected, "0")
+
+# Inisialisasi Session State jika belum ada
+if "selected_product" not in st.session_state:
+    st.session_state.selected_product = "CCL"
+if "berat_input" not in st.session_state:
+    st.session_state.berat_input = PRODUCT_DATABASE["CCL"]
+
+# --- AREA INPUT ---
+st.subheader("📌 Informasi Produk & Area")
+col1, col2 = st.columns(2)
+
+with col1:
+    tgl = st.date_input("Tanggal Produksi", value=date.today())
+    
+    product_options = list(PRODUCT_DATABASE.keys()) + ["Other (Lainnya...)"]
+    selected_product = st.selectbox(
+        "Nama Produk", 
+        options=product_options, 
+        key="selected_product", 
+        on_change=update_weight
+    )
+    
+    if selected_product == "Other (Lainnya...)":
+        custom_product_name = st.text_input("Ketik Nama Produk Baru", placeholder="Ketik nama produk baru...")
+    else:
+        custom_product_name = ""
+
+with col2:
+    line = st.selectbox("Line Production", [f"Line {i}" for i in range(1, 7)])
+    berat_produk_raw = st.text_input("Berat Produk (gram)", key="berat_input")
+
+# Form Pembungkus untuk mereset angka setelah submit
 with st.form(key="oee_input_form", clear_on_submit=True):
-    st.subheader("📌 Informasi Produk & Area")
-    col1, col2 = st.columns(2)
-
-    with col1:
-        tgl = st.date_input("Tanggal Produksi", value=date.today())
-        
-        product_options = list(PRODUCT_DATABASE.keys()) + ["Other (Lainnya...)"]
-        selected_product = st.selectbox("Nama Produk", options=product_options)
-        
-        if selected_product == "Other (Lainnya...)":
-            custom_product_name = st.text_input("Ketik Nama Produk Baru", placeholder="Ketik nama produk baru...")
-            default_weight = "0"
-        else:
-            custom_product_name = ""
-            default_weight = PRODUCT_DATABASE[selected_product]
-
-    with col2:
-        line = st.selectbox("Line Production", [f"Line {i}" for i in range(1, 7)])
-        berat_produk_raw = st.text_input("Berat Produk (gram)", value=default_weight, key=f"berat_{selected_product}")
-
     st.subheader("⏱️ Waktu Operasional & Downtime (Menit)")
     col3, col4, col5 = st.columns(3)
 
@@ -177,7 +195,6 @@ with st.form(key="oee_input_form", clear_on_submit=True):
 
 # 6. Eksekusi Validasi Rumus & Simpan Data Saat Tombol Diklik
 if submit_button:
-    # Lakukan validasi rumus saat tombol simpan diklik
     is_valid_berat, err_berat, val_berat = validate_realtime(berat_produk_raw, "Berat Produk")
     is_valid_dtu, err_dtu, val_dt_unplanned = validate_realtime(downtime_unplanned_raw, "Downtime Tidak Terencana")
     is_valid_dtp, err_dtp, val_dt_planned = validate_realtime(planned_downtime_raw, "Planned Downtime")
@@ -186,7 +203,6 @@ if submit_button:
     is_valid_def, err_def, val_defect = validate_realtime(defect_prod_raw, "Defect Produksi")
     is_valid_wst, err_wst, val_waste = validate_realtime(waste_stick_raw, "Waste Stick")
 
-    # Kumpulkan daftar error jika ada penulisan rumus yang salah
     errors = [err for is_v, err, _ in [
         (is_valid_berat, err_berat, val_berat),
         (is_valid_dtu, err_dtu, val_dt_unplanned),
