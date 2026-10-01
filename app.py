@@ -227,25 +227,44 @@ if submit_button:
             st.error("⚠️ **Nama Produk** wajib diisi/diketik jika memilih Other!")
         else:
             try:
-                with st.spinner("Menghitung rumus & menyimpan data ke Google Sheets..."):
+                with st.spinner("Mengecek duplikasi data & menyimpan ke Google Sheets..."):
                     sheet = get_sheet()
+                    existing_records = sheet.get_all_values()
                     
-                    new_row = [
-                        str(tgl),
-                        str(line),
-                        str(final_product_name),
-                        val_berat,
-                        int(val_dt_unplanned),
-                        int(val_dt_planned),
-                        int(val_output),
-                        int(val_defect),
-                        val_cycle_time,
-                        int(val_waste)
-                    ]
-                    
-                    sheet.append_row(new_row, value_input_option="USER_ENTERED")
-                
-                st.success(f"✅ Data tanggal {tgl} untuk {line} ({final_product_name}) berhasil disimpan!")
+                    # Cek apakah kombinasi Tanggal dan Line sudah ada di Google Sheets
+                    # Asumsi Kolom A = Tanggal (indeks 0), Kolom B = Line (indeks 1)
+                    target_tgl = str(tgl)
+                    target_line = str(line)
+                    is_duplicate = False
+
+                    if len(existing_records) > 1: # Abaikan baris header
+                        for row in existing_records[1:]:
+                            if len(row) >= 2:
+                                record_tgl = str(row[0]).strip()
+                                record_line = str(row[1]).strip()
+                                if record_tgl == target_tgl and record_line == target_line:
+                                    is_duplicate = True
+                                    break
+
+                    if is_duplicate:
+                        st.error(f"⛔ **Data Ganda Ditolak!** Laporan untuk **{target_line}** pada tanggal **{target_tgl}** sudah pernah diinput sebelumnya.")
+                        st.info("💡 *Jika ingin menginput ulang, silakan hapus dulu baris data tersebut langsung di Google Sheets.*")
+                    else:
+                        new_row = [
+                            str(tgl),
+                            str(line),
+                            str(final_product_name),
+                            val_berat,
+                            int(val_dt_unplanned),
+                            int(val_dt_planned),
+                            int(val_output),
+                            int(val_defect),
+                            val_cycle_time,
+                            int(val_waste)
+                        ]
+                        
+                        sheet.append_row(new_row, value_input_option="USER_ENTERED")
+                        st.success(f"✅ Data tanggal {tgl} untuk {line} ({final_product_name}) berhasil disimpan!")
 
             except Exception as e:
                 st.error(f"❌ Terjadi kesalahan saat menyimpan data: {e}")
