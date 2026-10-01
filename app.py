@@ -101,8 +101,16 @@ def validate_realtime(expression, field_name):
 # 5. Fungsi Koneksi Google Sheets
 def get_sheet():
     if "gcp_service_account" in st.secrets:
-        creds = dict(st.secrets["gcp_service_account"])
-        gc = gspread.service_account_from_dict(creds)
+        # Konversi secrets ke dictionary biasa
+        creds_dict = dict(st.secrets["gcp_service_account"])
+        
+        # Penanganan khusus agar private_key terbaca sempurna oleh Google Auth
+        if "private_key" in creds_dict:
+            pk = creds_dict["private_key"]
+            pk = pk.replace("\\n", "\n")
+            creds_dict["private_key"] = pk.strip()
+        
+        gc = gspread.service_account_from_dict(creds_dict)
     else:
         gc = gspread.service_account(
             filename="golden-index-510211-i4-5bc3df8a2ee9.json"
