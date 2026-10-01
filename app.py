@@ -3,6 +3,7 @@ import gspread
 import traceback
 import os
 import re
+import json
 from datetime import date
 from PIL import Image
 
@@ -100,16 +101,14 @@ def validate_realtime(expression, field_name):
 
 # 5. Fungsi Koneksi Google Sheets
 def get_sheet():
-    if "gcp_service_account" in st.secrets:
-        # Konversi secrets ke dictionary biasa
+    if "GCP_JSON" in st.secrets:
+        # Parsing string JSON secara native agar private_key dan karakter \n terbaca sempurna
+        creds_dict = json.loads(st.secrets["GCP_JSON"])
+        gc = gspread.service_account_from_dict(creds_dict)
+    elif "gcp_service_account" in st.secrets:
         creds_dict = dict(st.secrets["gcp_service_account"])
-        
-        # Penanganan khusus agar private_key terbaca sempurna oleh Google Auth
         if "private_key" in creds_dict:
-            pk = creds_dict["private_key"]
-            pk = pk.replace("\\n", "\n")
-            creds_dict["private_key"] = pk.strip()
-        
+            creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
         gc = gspread.service_account_from_dict(creds_dict)
     else:
         gc = gspread.service_account(
