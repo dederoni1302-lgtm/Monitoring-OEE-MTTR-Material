@@ -100,7 +100,13 @@ def validate_realtime(expression, field_name):
 
 # 5. Fungsi Koneksi Google Sheets
 def get_sheet():
-    gc = gspread.service_account(filename="golden-index-510211-i4-5bc3df8a2ee9.json")
+    if "gcp_service_account" in st.secrets:
+        creds = dict(st.secrets["gcp_service_account"])
+        gc = gspread.service_account_from_dict(creds)
+    else:
+        gc = gspread.service_account(
+            filename="golden-index-510211-i4-5bc3df8a2ee9.json"
+        )
     return gc.open_by_key(SPREADSHEET_ID).worksheet("Data_Harian")
 
 has_any_error = False
