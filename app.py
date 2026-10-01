@@ -2,7 +2,6 @@ import streamlit as st
 import gspread
 import traceback
 import os
-import re
 import json
 from datetime import date
 from PIL import Image
@@ -48,58 +47,20 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-st.info("💡 **Tips Input:** Pilih produk terdaftar untuk mengisi berat secara otomatis. Kolom angka mendukung rumus seperti `85+5` atau `1/342`. Jika tidak ada produksi (libur), semua kolom angka bisa diisi `0`.")
+st.info("💡 **Tips Input:** Isi data sesuai laporan harian. Setelah klik simpan, semua kolom angka akan otomatis ter-reset kembali ke angka 0.")
 st.divider()
 
 SPREADSHEET_ID = "1jrIXnAY4NiVpxL3mPHjhZx5b3hrEbZwFKIeHrL1b4C8"
 
-# Database Kamus Produk & Berat Standar (gram)
 PRODUCT_DATABASE = {
-    "CCL": "36",
-    "CCM": "39",
-    "CVC": "39",
-    "CVB": "35",
-    "Cool Strawberry": "56",
-    "CWA": "41",
-    "Milky Milk": "35",
-    "Kokomi": "23",
-    "Lalava": "23",
-    "Tropical Duo": "45",
-    "Frutty Duo": "45",
-    "Galaxy": "47",
-    "Choco Barry": "40",
-    "Es Susu": "35",
-    "Choco Fun": "35",
-    "Choco Crunch": "31",
-    "Guava": "50",
-    "Catton Candy": "45",
-    "Choco Malt": "38",
+    "CCL": 36.0, "CCM": 39.0, "CVC": 39.0, "CVB": 35.0,
+    "Cool Strawberry": 56.0, "CWA": 41.0, "Milky Milk": 35.0,
+    "Kokomi": 23.0, "Lalava": 23.0, "Tropical Duo": 45.0,
+    "Frutty Duo": 45.0, "Galaxy": 47.0, "Choco Barry": 40.0,
+    "Es Susu": 35.0, "Choco Fun": 35.0, "Choco Crunch": 31.0,
+    "Guava": 50.0, "Catton Candy": 45.0, "Choco Malt": 38.0,
 }
 
-# 4. Fungsi Validasi Real-Time (Mendukung Input 0 & Pembagian Nol)
-def validate_realtime(expression, field_name):
-    if expression is None or str(expression).strip() == "":
-        return True, "", 0.0
-
-    expr_str = str(expression).strip()
-
-    if re.search(r'[a-zA-Z]', expr_str):
-        return False, f"⚠️ **{field_name}** mengandung huruf (`{expr_str}`). Harap isi dengan angka/rumus yang sesuai!", None
-
-    clean_expr = expr_str.replace(",", ".")
-
-    try:
-        if re.match(r'^[0-9\.\+\-\*\/\(\)\s]+$', clean_expr):
-            val = float(eval(clean_expr, {"__builtins__": None}, {}))
-            return True, "", val
-        else:
-            return False, f"⚠️ Penulisan rumus pada **{field_name}** ({expr_str}) tidak valid!", None
-    except ZeroDivisionError:
-        return True, "", 0.0
-    except Exception:
-        return False, f"⚠️ Penulisan rumus pada **{field_name}** ({expr_str}) tidak valid!", None
-
-# 5. Fungsi Koneksi Google Sheets
 def get_sheet():
     if "GCP_JSON" in st.secrets:
         creds_dict = json.loads(st.secrets["GCP_JSON"])
@@ -117,9 +78,7 @@ def get_sheet():
         )
     return gc.open_by_key(SPREADSHEET_ID).worksheet("Data_Harian")
 
-has_any_error = False
-
-# --- AREA INPUT FORM DENGAN AUTOMATIC RESET (clear_on_submit=True) ---
+# --- AREA INPUT FORM BERSUIH & TANPA WARNING ---
 with st.form(key="oee_input_form", clear_on_submit=True):
     st.subheader("📌 Informasi Produk & Area")
     col1, col2 = st.columns(2)
@@ -132,108 +91,67 @@ with st.form(key="oee_input_form", clear_on_submit=True):
         
         if selected_product == "Other (Lainnya...)":
             custom_product_name = st.text_input("Ketik Nama Produk Baru", placeholder="Ketik nama produk baru...")
-            default_weight = "0"
+            default_weight = 0.0
         else:
             custom_product_name = ""
             default_weight = PRODUCT_DATABASE[selected_product]
 
     with col2:
         line = st.selectbox("Line Production", [f"Line {i}" for i in range(1, 7)])
-        
-        berat_produk_raw = st.text_input("Berat Produk (gram)", value=default_weight)
-        is_valid_berat, err_berat, val_berat = validate_realtime(berat_produk_raw, "Berat Produk")
-        if not is_valid_berat:
-            st.error(err_berat)
-            has_any_error = True
+        val_berat = st.number_input("Berat Produk (gram)", min_value=0.0, value=default_weight, step=1.0)
 
     st.subheader("⏱️ Waktu Operasional & Downtime (Menit)")
     col3, col4, col5 = st.columns(3)
 
     with col3:
-        downtime_unplanned_raw = st.text_input("Downtime Tidak Terencana", value="0", help="Contoh: 30+15+10 atau 0")
-        is_valid_dtu, err_dtu, val_dt_unplanned = validate_realtime(downtime_unplanned_raw, "Downtime Tidak Terencana")
-        if not is_valid_dtu:
-            st.error(err_dtu)
-            has_any_error = True
+        val_dt_unplanned = st.number_input("Downtime Tidak Terencana", min_value=0, value=0, step=1)
 
     with col4:
-        planned_downtime_raw = st.text_input("Planned Downtime", value="0", help="Contoh: 60+60 atau 0")
-        is_valid_dtp, err_dtp, val_dt_planned = validate_realtime(planned_downtime_raw, "Planned Downtime")
-        if not is_valid_dtp:
-            st.error(err_dtp)
-            has_any_error = True
+        val_dt_planned = st.number_input("Planned Downtime", min_value=0, value=0, step=1)
 
     with col5:
-        cycle_time_raw = st.text_input("Waktu Siklus Ideal", value="0", help="Contoh: 0.05, 1/342, atau 0")
-        is_valid_ct, err_ct, val_cycle_time = validate_realtime(cycle_time_raw, "Waktu Siklus Ideal")
-        if not is_valid_ct:
-            st.error(err_ct)
-            has_any_error = True
+        val_cycle_time = st.number_input("Waktu Siklus Ideal", min_value=0.0, value=0.0, format="%.4f")
 
     st.subheader("📦 Output Produksi & Waste Material (Pcs)")
     col6, col7, col8 = st.columns(3)
 
     with col6:
-        total_output_raw = st.text_input("Output Produksi", value="0", help="Contoh: (1000*10)+(500*2) atau 0")
-        is_valid_out, err_out, val_output = validate_realtime(total_output_raw, "Output Produksi")
-        if not is_valid_out:
-            st.error(err_out)
-            has_any_error = True
+        val_output = st.number_input("Output Produksi", min_value=0, value=0, step=1)
 
     with col7:
-        defect_prod_raw = st.text_input("Defect Produksi", value="0", help="Contoh: 50+25 atau 0")
-        is_valid_def, err_def, val_defect = validate_realtime(defect_prod_raw, "Defect Produksi")
-        if not is_valid_def:
-            st.error(err_def)
-            has_any_error = True
+        val_defect = st.number_input("Defect Produksi", min_value=0, value=0, step=1)
 
     with col8:
-        waste_stick_raw = st.text_input("Waste Stick", value="0", help="Contoh: 100+40 atau 0")
-        is_valid_wst, err_wst, val_waste = validate_realtime(waste_stick_raw, "Waste Stick")
-        if not is_valid_wst:
-            st.error(err_wst)
-            has_any_error = True
+        val_waste = st.number_input("Waste Stick", min_value=0, value=0, step=1)
 
     st.markdown("---")
     submit_button = st.form_submit_button("🚀 Simpan Data Laporan", use_container_width=True)
 
-if has_any_error:
-    st.warning("⚠️ Silakan perbaiki kolom yang berwarna merah di atas sebelum menyimpan data.")
-
-# 6. Eksekusi Simpan Data
+# Eksekusi Simpan Data
 if submit_button:
-    if has_any_error:
-        st.error("❌ Data tidak dapat disimpan karena masih terdapat kesalahan input!")
+    if selected_product == "Other (Lainnya...)" and not custom_product_name.strip():
+        st.error("⚠️ **Nama Produk** wajib diketik jika memilih Other!")
     else:
-        if selected_product == "Other (Lainnya...)":
-            final_product_name = custom_product_name.strip()
-        else:
-            final_product_name = selected_product
+        final_product_name = custom_product_name.strip() if selected_product == "Other (Lainnya...)" else selected_product
+        try:
+            with st.spinner("Menyimpan data ke Google Sheets..."):
+                sheet = get_sheet()
+                new_row = [
+                    str(tgl),
+                    str(line),
+                    str(final_product_name),
+                    val_berat,
+                    int(val_dt_unplanned),
+                    int(val_dt_planned),
+                    int(val_output),
+                    int(val_defect),
+                    val_cycle_time,
+                    int(val_waste)
+                ]
+                sheet.append_row(new_row, value_input_option="USER_ENTERED")
+            
+            st.success(f"✅ Data tanggal {tgl} untuk {line} ({final_product_name}) berhasil disimpan!")
 
-        if not final_product_name:
-            st.error("⚠️ **Nama Produk** wajib diisi/diketik jika memilih Other!")
-        else:
-            try:
-                with st.spinner("Menghitung rumus & menyimpan data ke Google Sheets..."):
-                    sheet = get_sheet()
-                    
-                    new_row = [
-                        str(tgl),
-                        str(line),
-                        str(final_product_name),
-                        val_berat,
-                        int(val_dt_unplanned),
-                        int(val_dt_planned),
-                        int(val_output),
-                        int(val_defect),
-                        val_cycle_time,
-                        int(val_waste)
-                    ]
-                    
-                    sheet.append_row(new_row, value_input_option="USER_ENTERED")
-                
-                st.success(f"✅ Data tanggal {tgl} untuk {line} ({final_product_name}) berhasil disimpan!")
-
-            except Exception as e:
-                st.error(f"❌ Terjadi kesalahan saat menyimpan data: {e}")
-                st.code(traceback.format_exc(), language="python")
+        except Exception as e:
+            st.error(f"❌ Terjadi kesalahan saat menyimpan data: {e}")
+            st.code(traceback.format_exc(), language="python")
