@@ -109,6 +109,8 @@ def validate_realtime(expression, field_name):
         return False, f"⚠️️ Penulisan rumus pada **{field_name}** ({expr_str}) tidak valid!", None
 
 # 5. Fungsi Koneksi Google Sheets
+# 5. Fungsi Koneksi Google Sheets
+@st.cache_resource(ttl=600)  # <-- Tambahkan baris ini tepat di atas def get_sheet()
 def get_sheet():
     if "GCP_JSON" in st.secrets:
         creds_dict = json.loads(st.secrets["GCP_JSON"])
