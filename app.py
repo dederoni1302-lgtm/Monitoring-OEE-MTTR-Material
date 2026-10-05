@@ -106,7 +106,7 @@ def validate_realtime(expression, field_name):
     except ZeroDivisionError:
         return True, "", 0.0
     except Exception:
-        return False, f"⚠️ Penulisan rumus pada **{field_name}** ({expr_str}) tidak valid!", None
+        return False, f"⚠️️ Penulisan rumus pada **{field_name}** ({expr_str}) tidak valid!", None
 
 # 5. Fungsi Koneksi Google Sheets
 def get_sheet():
@@ -176,7 +176,8 @@ with st.form(key="oee_input_form", clear_on_submit=True):
         planned_downtime_raw = st.text_input("Planned Downtime", value="0", help="Contoh: 60+60 atau 0")
 
     with col5:
-        cycle_time_raw = st.text_input("Waktu Siklus Ideal", value="0", help="Contoh: 0.05, 1/342, atau 0")
+        # DIGANTI: Input Waktu Siklus Ideal diganti menjadi Frekuensi Breakdown
+        freq_breakdown_raw = st.text_input("Frekuensi Breakdown (kali)", value="0", help="Contoh: 1+2 atau 0 (Jumlah kejadian mesin mati/breakdown)")
 
     st.subheader("📦 Output Produksi & Waste Material (Pcs)")
     col6, col7, col8 = st.columns(3)
@@ -198,7 +199,7 @@ if submit_button:
     is_valid_berat, err_berat, val_berat = validate_realtime(berat_produk_raw, "Berat Produk")
     is_valid_dtu, err_dtu, val_dt_unplanned = validate_realtime(downtime_unplanned_raw, "Downtime Tidak Terencana")
     is_valid_dtp, err_dtp, val_dt_planned = validate_realtime(planned_downtime_raw, "Planned Downtime")
-    is_valid_ct, err_ct, val_cycle_time = validate_realtime(cycle_time_raw, "Waktu Siklus Ideal")
+    is_valid_fb, err_fb, val_freq_breakdown = validate_realtime(freq_breakdown_raw, "Frekuensi Breakdown")
     is_valid_out, err_out, val_output = validate_realtime(total_output_raw, "Output Produksi")
     is_valid_def, err_def, val_defect = validate_realtime(defect_prod_raw, "Defect Produksi")
     is_valid_wst, err_wst, val_waste = validate_realtime(waste_stick_raw, "Waste Stick")
@@ -207,7 +208,7 @@ if submit_button:
         (is_valid_berat, err_berat, val_berat),
         (is_valid_dtu, err_dtu, val_dt_unplanned),
         (is_valid_dtp, err_dtp, val_dt_planned),
-        (is_valid_ct, err_ct, val_cycle_time),
+        (is_valid_fb, err_fb, val_freq_breakdown),
         (is_valid_out, err_out, val_output),
         (is_valid_def, err_def, val_defect),
         (is_valid_wst, err_wst, val_waste)
@@ -250,6 +251,8 @@ if submit_button:
                         st.error(f"⛔ **Data Ganda Ditolak!** Laporan untuk **{target_line}** pada tanggal **{target_tgl}** sudah pernah diinput sebelumnya.")
                         st.info("💡 *Jika ingin menginput ulang, silakan hapus dulu baris data tersebut langsung di Google Sheets.*")
                     else:
+                        # Keterangan Susunan Kolom ke Google Sheets:
+                        # A: Tanggal, B: Line, C: Produk, D: Berat, E: Unplanned DT, F: Planned DT, G: Output, H: Defect, I: Waktu Siklus (Dibiarkan kosong "" agar dihitung ARRAYFORMULA), J: Waste Stick, K: Frekuensi Breakdown
                         new_row = [
                             str(tgl),
                             str(line),
@@ -259,8 +262,9 @@ if submit_button:
                             int(val_dt_planned),
                             int(val_output),
                             int(val_defect),
-                            val_cycle_time,
-                            int(val_waste)
+                            "",  # Kolom I (Waktu Siklus Ideal) dikosongkan agar terisi otomatis oleh ARRAYFORMULA
+                            int(val_waste),
+                            int(val_freq_breakdown) # Kolom K: Frekuensi Breakdown
                         ]
                         
                         sheet.append_row(new_row, value_input_option="USER_ENTERED")
