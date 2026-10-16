@@ -67,7 +67,7 @@ PRODUCT_DATABASE = {
     "CCL": "36",
     "CCM": "39",
     "CVC": "39",
-    "CVB": "35",
+    "CBB": "35",
     "Cool Strawberry": "56",
     "CWA": "41",
     "Milky Milk": "35",
@@ -108,25 +108,31 @@ def validate_realtime(expression, field_name):
     except Exception:
         return False, f"⚠️️ Penulisan rumus pada **{field_name}** ({expr_str}) tidak valid!", None
 
-# 5. Fungsi Koneksi Google Sheets
-# 5. Fungsi Koneksi Google Sheets
-@st.cache_resource(ttl=600)  # <-- Tambahkan baris ini tepat di atas def get_sheet()
+# 5. Fungsi Koneksi Google Sheets (Diperbaiki)
+@st.cache_resource(ttl=600)
 def get_sheet():
+    json_filename = "golden-index-510211-i4-5bc3df8a2ee9.json"
+    
+    # 1. Jika running di laptop lokal & file JSON ada, LANGSUNG PAKAI FILE JSON
+    if os.path.exists(json_filename):
+        gc = gspread.service_account(filename=json_filename)
+        return gc.open_by_key(SPREADSHEET_ID).worksheet("Data_Harian")
+    
+    # 2. Jika running di Streamlit Cloud (file JSON tidak ada), BARU PAKAI st.secrets
     if "GCP_JSON" in st.secrets:
         creds_dict = json.loads(st.secrets["GCP_JSON"])
         if "private_key" in creds_dict:
             creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
         gc = gspread.service_account_from_dict(creds_dict)
+        return gc.open_by_key(SPREADSHEET_ID).worksheet("Data_Harian")
     elif "gcp_service_account" in st.secrets:
         creds_dict = dict(st.secrets["gcp_service_account"])
         if "private_key" in creds_dict:
             creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
         gc = gspread.service_account_from_dict(creds_dict)
-    else:
-        gc = gspread.service_account(
-            filename="golden-index-510211-i4-5bc3df8a2ee9.json"
-        )
-    return gc.open_by_key(SPREADSHEET_ID).worksheet("Data_Harian")
+        return gc.open_by_key(SPREADSHEET_ID).worksheet("Data_Harian")
+    
+    raise FileNotFoundError(f"File '{json_filename}' tidak ditemukan di folder lokal!")
 
 # Inisialisasi callback untuk memperbarui berat produk secara otomatis saat produk dipilih
 def update_weight():
