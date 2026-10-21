@@ -23,7 +23,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 2. Menampilkan Logo PT Green Asia Food Indonesia (Yili Group)
+# 2. Menampilkan Logo PT Yili Indonesia dairy
 col1_logo, col2_logo, col3_logo = st.columns([1, 2, 1])
 with col2_logo:
     logo_found = False
@@ -106,19 +106,17 @@ def validate_realtime(expression, field_name):
     except ZeroDivisionError:
         return True, "", 0.0
     except Exception:
-        return False, f"⚠️️ Penulisan rumus pada **{field_name}** ({expr_str}) tidak valid!", None
+        return False, f"⚠️ Penulisan rumus pada **{field_name}** ({expr_str}) tidak valid!", None
 
-# 5. Fungsi Koneksi Google Sheets (Diperbaiki)
+# 5. Fungsi Koneksi Google Sheets
 @st.cache_resource(ttl=600)
 def get_sheet():
     json_filename = "golden-index-510211-i4-5bc3df8a2ee9.json"
     
-    # 1. Jika running di laptop lokal & file JSON ada, LANGSUNG PAKAI FILE JSON
     if os.path.exists(json_filename):
         gc = gspread.service_account(filename=json_filename)
         return gc.open_by_key(SPREADSHEET_ID).worksheet("Data_Harian")
     
-    # 2. Jika running di Streamlit Cloud (file JSON tidak ada), BARU PAKAI st.secrets
     if "GCP_JSON" in st.secrets:
         creds_dict = json.loads(st.secrets["GCP_JSON"])
         if "private_key" in creds_dict:
@@ -148,6 +146,11 @@ if "selected_product" not in st.session_state:
 if "berat_input" not in st.session_state:
     st.session_state.berat_input = PRODUCT_DATABASE["CCL"]
 
+# Tampilkan notifikasi sukses jika baru saja berhasil submit
+if "success_message" in st.session_state:
+    st.success(st.session_state.success_message)
+    del st.session_state.success_message
+
 # --- AREA INPUT ---
 st.subheader("📌 Informasi Produk & Area")
 col1, col2 = st.columns(2)
@@ -172,8 +175,8 @@ with col2:
     line = st.selectbox("Line Production", [f"Line {i}" for i in range(1, 7)])
     berat_produk_raw = st.text_input("Berat Produk (gram)", key="berat_input")
 
-# Form Pembungkus untuk mereset angka setelah submit
-with st.form(key="oee_input_form", clear_on_submit=True):
+# PENTING: clear_on_submit diubah menjadi False agar data TIDAK hilang saat ada error
+with st.form(key="oee_input_form", clear_on_submit=False):
     st.subheader("⏱️ Waktu Operasional & Downtime (Menit)")
     col3, col4, col5 = st.columns(3)
 
@@ -184,7 +187,6 @@ with st.form(key="oee_input_form", clear_on_submit=True):
         planned_downtime_raw = st.text_input("Planned Downtime", value="0", help="Contoh: 60+60 atau 0")
 
     with col5:
-        # DIGANTI: Input Waktu Siklus Ideal diganti menjadi Frekuensi Breakdown
         freq_breakdown_raw = st.text_input("Frekuensi Breakdown (kali)", value="0", help="Contoh: 1+2 atau 0 (Jumlah kejadian mesin mati/breakdown)")
 
     st.subheader("📦 Output Produksi & Waste Material (Pcs)")
@@ -225,7 +227,7 @@ if submit_button:
     if errors:
         for err in errors:
             st.error(err)
-        st.warning("⚠️ Silakan perbaiki kesalahan penulisan rumus di atas sebelum menyimpan data.")
+        st.warning("⚠️ **Data tidak di-reset.** Silakan perbaiki kesalahan penulisan di atas lalu klik simpan kembali.")
     else:
         if selected_product == "Other (Lainnya...)":
             final_product_name = custom_product_name.strip()
@@ -240,13 +242,11 @@ if submit_button:
                     sheet = get_sheet()
                     existing_records = sheet.get_all_values()
                     
-                    # Cek apakah kombinasi Tanggal dan Line sudah ada di Google Sheets
-                    # Asumsi Kolom A = Tanggal (indeks 0), Kolom B = Line (indeks 1)
                     target_tgl = str(tgl)
                     target_line = str(line)
                     is_duplicate = False
 
-                    if len(existing_records) > 1: # Abaikan baris header
+                    if len(existing_records) > 1:
                         for row in existing_records[1:]:
                             if len(row) >= 2:
                                 record_tgl = str(row[0]).strip()
@@ -257,10 +257,8 @@ if submit_button:
 
                     if is_duplicate:
                         st.error(f"⛔ **Data Ganda Ditolak!** Laporan untuk **{target_line}** pada tanggal **{target_tgl}** sudah pernah diinput sebelumnya.")
-                        st.info("💡 *Jika ingin menginput ulang, silakan hapus dulu baris data tersebut langsung di Google Sheets.*")
+                        st.info("💡 Data Anda tidak terhapus. Silakan ganti Line/Tanggal atau hapus baris lama di Google Sheets.")
                     else:
-                        # Keterangan Susunan Kolom ke Google Sheets:
-                        # A: Tanggal, B: Line, C: Produk, D: Berat, E: Unplanned DT, F: Planned DT, G: Output, H: Defect, I: Waktu Siklus (Dibiarkan kosong "" agar dihitung ARRAYFORMULA), J: Waste Stick, K: Frekuensi Breakdown
                         new_row = [
                             str(tgl),
                             str(line),
@@ -270,13 +268,16 @@ if submit_button:
                             int(val_dt_planned),
                             int(val_output),
                             int(val_defect),
-                            "",  # Kolom I (Waktu Siklus Ideal) dikosongkan agar terisi otomatis oleh ARRAYFORMULA
+                            "",  # Kolom I dikosongkan untuk ARRAYFORMULA
                             int(val_waste),
-                            int(val_freq_breakdown) # Kolom K: Frekuensi Breakdown
+                            int(val_freq_breakdown)
                         ]
                         
                         sheet.append_row(new_row, value_input_option="USER_ENTERED")
-                        st.success(f"✅ Data tanggal {tgl} untuk {line} ({final_product_name}) berhasil disimpan!")
+                        
+                        # Simpan pesan sukses ke session state lalu rerun halaman agar form ter-reset
+                        st.session_state.success_message = f"✅ Data tanggal {tgl} untuk {line} ({final_product_name}) berhasil disimpan!"
+                        st.rerun()
 
             except Exception as e:
                 st.error(f"❌ Terjadi kesalahan saat menyimpan data: {e}")
