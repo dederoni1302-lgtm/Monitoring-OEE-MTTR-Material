@@ -216,9 +216,9 @@ with st.form(key="oee_input_form", clear_on_submit=False):
     st.markdown("---")
     submit_button = st.form_submit_button("🚀 Simpan Data Laporan", use_container_width=True)
 
-# 7. Eksekusi Validasi Rumus & Simpan Data Saat Tombol Diklik
+# 7. Eksekusi Validasi Rumus, Cek Duplikasi, & Simpan Data Saat Tombol Diklik
 if submit_button:
-    # Simpan nilai yang baru diketik oleh user ke session state terlebih dahulu
+    # Simpan inputan user ke session state agar tidak hilang saat terjadi error/duplikasi
     st.session_state["input_dt_unplanned"] = downtime_unplanned_raw
     st.session_state["input_dt_planned"] = planned_downtime_raw
     st.session_state["input_freq_breakdown"] = freq_breakdown_raw
@@ -247,7 +247,7 @@ if submit_button:
     if errors:
         for err in errors:
             st.error(err)
-        st.warning("⚠️ **Data Anda tetap tersimpan di kolom.** Silakan perbaiki kesalahan penulisan rumus di atas, lalu klik Simpan kembali.")
+        st.warning("⚠️ **Data Anda tetap aman di kolom.** Silakan perbaiki kesalahan di atas, lalu klik Simpan kembali.")
     else:
         if selected_product == "Other (Lainnya...)":
             final_product_name = custom_product_name.strip()
@@ -266,6 +266,7 @@ if submit_button:
                     target_line = str(line)
                     is_duplicate = False
 
+                    # Pengecekan Duplikasi Berdasarkan Tanggal (Kolom A) dan Line (Kolom B)
                     if len(existing_records) > 1:
                         for row in existing_records[1:]:
                             if len(row) >= 2:
@@ -276,8 +277,8 @@ if submit_button:
                                     break
 
                     if is_duplicate:
-                        st.error(f"⛔ **Data Ganda Ditolak!** Laporan untuk **{target_line}** pada tanggal **{target_tgl}** sudah pernah diinput sebelumnya.")
-                        st.info("💡 Data Anda tidak terhapus. Silakan ganti Line/Tanggal atau hapus baris lama di Google Sheets.")
+                        st.error(f"⛔ **PENCEGAHAN DUPLIKASI DATA!** Laporan untuk **{target_line}** pada tanggal **{target_tgl}** sudah pernah diinput sebelumnya ke dalam sistem.")
+                        st.warning("⚠️ **Data inputan Anda tidak hilang.** Silakan ubah tanggal/line produksi, atau hapus data lama langsung di Google Sheets jika ingin melakukan input ulang.")
                     else:
                         new_row = [
                             str(tgl),
@@ -295,7 +296,7 @@ if submit_button:
                         
                         sheet.append_row(new_row, value_input_option="USER_ENTERED")
                         
-                        # BERHASIL -> Kosongkan input state
+                        # BERHASIL -> Kosongkan form input state
                         reset_form_inputs()
                         st.session_state.success_message = f"✅ Data tanggal {tgl} untuk {line} ({final_product_name}) berhasil disimpan!"
                         st.rerun()
