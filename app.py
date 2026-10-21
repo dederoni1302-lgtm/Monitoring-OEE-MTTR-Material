@@ -85,23 +85,26 @@ PRODUCT_DATABASE = {
     "Choco Malt": "38",
 }
 
-# Inisialisasi Session State untuk menyimpan data sementara saat terjadi error validasi/duplikasi
-if "form_data" not in st.session_state:
-    st.session_state.form_data = {
-        "dt_unplanned": "0",
-        "dt_planned": "0",
-        "freq_breakdown": "0",
-        "total_output": "0",
-        "defect_prod": "0",
-        "waste_stick": "0"
-    }
+# 4. Inisialisasi Session State
+input_keys = [
+    "input_dt_unplanned", "input_dt_planned", "input_freq_breakdown",
+    "input_total_output", "input_defect_prod", "input_waste_stick"
+]
+for k in input_keys:
+    if k not in st.session_state:
+        st.session_state[k] = "0"
 
 if "selected_product" not in st.session_state:
     st.session_state.selected_product = "CCL"
 if "berat_input" not in st.session_state:
     st.session_state.berat_input = PRODUCT_DATABASE["CCL"]
 
-# 4. Fungsi Validasi Real-Time
+def reset_form_inputs():
+    """Fungsi mereset isi form ke '0' HANYA saat data sukses disimpan"""
+    for k in input_keys:
+        st.session_state[k] = "0"
+
+# 5. Fungsi Validasi Real-Time
 def validate_realtime(expression, field_name):
     if expression is None or str(expression).strip() == "":
         return True, "", 0.0
@@ -124,7 +127,7 @@ def validate_realtime(expression, field_name):
     except Exception:
         return False, f"⚠️ Penulisan rumus pada **{field_name}** ({expr_str}) tidak valid!", None
 
-# 5. Fungsi Koneksi Google Sheets
+# 6. Fungsi Koneksi Google Sheets
 @st.cache_resource(ttl=600)
 def get_sheet():
     json_filename = "golden-index-510211-i4-5bc3df8a2ee9.json"
@@ -182,7 +185,7 @@ with col1:
 
 with col2:
     line = st.selectbox("Line Production", [f"Line {i}" for i in range(1, 7)])
-    berat_produk_raw = st.text_input("Berat Produk (gram)", value=st.session_state.berat_input)
+    berat_produk_raw = st.text_input("Berat Produk (gram)", value=st.session_state.berat_input, key="berat_input_field")
 
 # FORM INPUT
 with st.form(key="oee_input_form", clear_on_submit=False):
@@ -190,38 +193,38 @@ with st.form(key="oee_input_form", clear_on_submit=False):
     col3, col4, col5 = st.columns(3)
 
     with col3:
-        downtime_unplanned_raw = st.text_input("Downtime Tidak Terencana", value=st.session_state.form_data["dt_unplanned"], help="Contoh: 30+15+10 atau 0")
+        downtime_unplanned_raw = st.text_input("Downtime Tidak Terencana", value=st.session_state["input_dt_unplanned"], help="Contoh: 30+15+10 atau 0")
 
     with col4:
-        planned_downtime_raw = st.text_input("Planned Downtime", value=st.session_state.form_data["dt_planned"], help="Contoh: 60+60 atau 0")
+        planned_downtime_raw = st.text_input("Planned Downtime", value=st.session_state["input_dt_planned"], help="Contoh: 60+60 atau 0")
 
     with col5:
-        freq_breakdown_raw = st.text_input("Frekuensi Breakdown (kali)", value=st.session_state.form_data["freq_breakdown"], help="Contoh: 1+2 atau 0")
+        freq_breakdown_raw = st.text_input("Frekuensi Breakdown (kali)", value=st.session_state["input_freq_breakdown"], help="Contoh: 1+2 atau 0")
 
     st.subheader("📦 Output Produksi & Waste Material (Pcs)")
     col6, col7, col8 = st.columns(3)
 
     with col6:
-        total_output_raw = st.text_input("Output Produksi", value=st.session_state.form_data["total_output"], help="Contoh: (1000*10)+(500*2) atau 0")
+        total_output_raw = st.text_input("Output Produksi", value=st.session_state["input_total_output"], help="Contoh: (1000*10)+(500*2) atau 0")
 
     with col7:
-        defect_prod_raw = st.text_input("Defect Produksi", value=st.session_state.form_data["defect_prod"], help="Contoh: 50+25 atau 0")
+        defect_prod_raw = st.text_input("Defect Produksi", value=st.session_state["input_defect_prod"], help="Contoh: 50+25 atau 0")
 
     with col8:
-        waste_stick_raw = st.text_input("Waste Stick", value=st.session_state.form_data["waste_stick"], help="Contoh: 100+40 atau 0")
+        waste_stick_raw = st.text_input("Waste Stick", value=st.session_state["input_waste_stick"], help="Contoh: 100+40 atau 0")
 
     st.markdown("---")
     submit_button = st.form_submit_button("🚀 Simpan Data Laporan", use_container_width=True)
 
-# 6. Eksekusi Validasi Rumus, Cek Duplikasi, & Simpan Data Saat Tombol Diklik
+# 7. Eksekusi Validasi Rumus & Simpan Data Saat Tombol Diklik
 if submit_button:
-    # Simpan inputan user ke session_state agar nilainya tetap bertahan di layar jika terjadi error/duplikasi
-    st.session_state.form_data["dt_unplanned"] = downtime_unplanned_raw
-    st.session_state.form_data["dt_planned"] = planned_downtime_raw
-    st.session_state.form_data["freq_breakdown"] = freq_breakdown_raw
-    st.session_state.form_data["total_output"] = total_output_raw
-    st.session_state.form_data["defect_prod"] = defect_prod_raw
-    st.session_state.form_data["waste_stick"] = waste_stick_raw
+    # Simpan nilai yang baru diketik oleh user ke session state terlebih dahulu
+    st.session_state["input_dt_unplanned"] = downtime_unplanned_raw
+    st.session_state["input_dt_planned"] = planned_downtime_raw
+    st.session_state["input_freq_breakdown"] = freq_breakdown_raw
+    st.session_state["input_total_output"] = total_output_raw
+    st.session_state["input_defect_prod"] = defect_prod_raw
+    st.session_state["input_waste_stick"] = waste_stick_raw
 
     is_valid_berat, err_berat, val_berat = validate_realtime(berat_produk_raw, "Berat Produk")
     is_valid_dtu, err_dtu, val_dt_unplanned = validate_realtime(downtime_unplanned_raw, "Downtime Tidak Terencana")
@@ -244,7 +247,7 @@ if submit_button:
     if errors:
         for err in errors:
             st.error(err)
-        st.warning("⚠️ **Data Anda tetap aman di kolom.** Silakan perbaiki kesalahan di atas, lalu klik Simpan kembali.")
+        st.warning("⚠️ **Data Anda tetap tersimpan di kolom.** Silakan perbaiki kesalahan penulisan rumus di atas, lalu klik Simpan kembali.")
     else:
         if selected_product == "Other (Lainnya...)":
             final_product_name = custom_product_name.strip()
@@ -263,7 +266,6 @@ if submit_button:
                     target_line = str(line)
                     is_duplicate = False
 
-                    # Pengecekan Duplikasi Berdasarkan Tanggal (Kolom A) dan Line (Kolom B)
                     if len(existing_records) > 1:
                         for row in existing_records[1:]:
                             if len(row) >= 2:
@@ -274,8 +276,8 @@ if submit_button:
                                     break
 
                     if is_duplicate:
-                        st.error(f"⛔ **PENCEGAHAN DUPLIKASI DATA!** Laporan untuk **{target_line}** pada tanggal **{target_tgl}** sudah pernah diinput sebelumnya ke dalam sistem.")
-                        st.warning("⚠️ **Data inputan Anda tidak hilang.** Silakan ubah tanggal/line produksi, atau hapus data lama langsung di Google Sheets jika ingin melakukan input ulang.")
+                        st.error(f"⛔ **Data Ganda Ditolak!** Laporan untuk **{target_line}** pada tanggal **{target_tgl}** sudah pernah diinput sebelumnya.")
+                        st.info("💡 Data Anda tidak terhapus. Silakan ganti Line/Tanggal atau hapus baris lama di Google Sheets.")
                     else:
                         new_row = [
                             str(tgl),
@@ -293,15 +295,8 @@ if submit_button:
                         
                         sheet.append_row(new_row, value_input_option="USER_ENTERED")
                         
-                        # BERHASIL -> Reset form data kembali ke '0'
-                        st.session_state.form_data = {
-                            "dt_unplanned": "0",
-                            "dt_planned": "0",
-                            "freq_breakdown": "0",
-                            "total_output": "0",
-                            "defect_prod": "0",
-                            "waste_stick": "0"
-                        }
+                        # BERHASIL -> Kosongkan input state
+                        reset_form_inputs()
                         st.session_state.success_message = f"✅ Data tanggal {tgl} untuk {line} ({final_product_name}) berhasil disimpan!"
                         st.rerun()
 
