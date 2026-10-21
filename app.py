@@ -23,7 +23,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 2. Menampilkan Logo PT Yili Indonesia dairy
+# 2. Menampilkan Logo PT Yili Indonesia Dairy
 col1_logo, col2_logo, col3_logo = st.columns([1, 2, 1])
 with col2_logo:
     logo_found = False
@@ -85,7 +85,7 @@ PRODUCT_DATABASE = {
     "Choco Malt": "38",
 }
 
-# 4. Inisialisasi Session State Nilai Input Form agar TIDAK Hilang saat Error
+# 4. Inisialisasi Session State
 input_keys = [
     "input_dt_unplanned", "input_dt_planned", "input_freq_breakdown",
     "input_total_output", "input_defect_prod", "input_waste_stick"
@@ -100,11 +100,11 @@ if "berat_input" not in st.session_state:
     st.session_state.berat_input = PRODUCT_DATABASE["CCL"]
 
 def reset_form_inputs():
-    """Fungsi khusus untuk mereset isi form ke '0' HANYA saat data sukses disimpan"""
+    """Fungsi mereset isi form ke '0' HANYA saat data sukses disimpan"""
     for k in input_keys:
         st.session_state[k] = "0"
 
-# 5. Fungsi Validasi Real-Time (Mendukung Input 0 & Pembagian Nol)
+# 5. Fungsi Validasi Real-Time
 def validate_realtime(expression, field_name):
     if expression is None or str(expression).strip() == "":
         return True, "", 0.0
@@ -151,7 +151,6 @@ def get_sheet():
     
     raise FileNotFoundError(f"File '{json_filename}' tidak ditemukan di folder lokal!")
 
-# Inisialisasi callback untuk memperbarui berat produk secara otomatis saat produk dipilih
 def update_weight():
     selected = st.session_state.selected_product
     if selected == "Other (Lainnya...)":
@@ -186,39 +185,47 @@ with col1:
 
 with col2:
     line = st.selectbox("Line Production", [f"Line {i}" for i in range(1, 7)])
-    berat_produk_raw = st.text_input("Berat Produk (gram)", key="berat_input")
+    berat_produk_raw = st.text_input("Berat Produk (gram)", value=st.session_state.berat_input, key="berat_input_field")
 
-# FORM INPUT (Gunakan key di session state agar data TIDAK HILANG saat ada error)
+# FORM INPUT
 with st.form(key="oee_input_form", clear_on_submit=False):
     st.subheader("⏱️ Waktu Operasional & Downtime (Menit)")
     col3, col4, col5 = st.columns(3)
 
     with col3:
-        downtime_unplanned_raw = st.text_input("Downtime Tidak Terencana", key="input_dt_unplanned", help="Contoh: 30+15+10 atau 0")
+        downtime_unplanned_raw = st.text_input("Downtime Tidak Terencana", value=st.session_state["input_dt_unplanned"], help="Contoh: 30+15+10 atau 0")
 
     with col4:
-        planned_downtime_raw = st.text_input("Planned Downtime", key="input_dt_planned", help="Contoh: 60+60 atau 0")
+        planned_downtime_raw = st.text_input("Planned Downtime", value=st.session_state["input_dt_planned"], help="Contoh: 60+60 atau 0")
 
     with col5:
-        freq_breakdown_raw = st.text_input("Frekuensi Breakdown (kali)", key="input_freq_breakdown", help="Contoh: 1+2 atau 0 (Jumlah kejadian mesin mati/breakdown)")
+        freq_breakdown_raw = st.text_input("Frekuensi Breakdown (kali)", value=st.session_state["input_freq_breakdown"], help="Contoh: 1+2 atau 0")
 
     st.subheader("📦 Output Produksi & Waste Material (Pcs)")
     col6, col7, col8 = st.columns(3)
 
     with col6:
-        total_output_raw = st.text_input("Output Produksi", key="input_total_output", help="Contoh: (1000*10)+(500*2) atau 0")
+        total_output_raw = st.text_input("Output Produksi", value=st.session_state["input_total_output"], help="Contoh: (1000*10)+(500*2) atau 0")
 
     with col7:
-        defect_prod_raw = st.text_input("Defect Produksi", key="input_defect_prod", help="Contoh: 50+25 atau 0")
+        defect_prod_raw = st.text_input("Defect Produksi", value=st.session_state["input_defect_prod"], help="Contoh: 50+25 atau 0")
 
     with col8:
-        waste_stick_raw = st.text_input("Waste Stick", key="input_waste_stick", help="Contoh: 100+40 atau 0")
+        waste_stick_raw = st.text_input("Waste Stick", value=st.session_state["input_waste_stick"], help="Contoh: 100+40 atau 0")
 
     st.markdown("---")
     submit_button = st.form_submit_button("🚀 Simpan Data Laporan", use_container_width=True)
 
 # 7. Eksekusi Validasi Rumus & Simpan Data Saat Tombol Diklik
 if submit_button:
+    # Simpan nilai yang baru diketik oleh user ke session state terlebih dahulu
+    st.session_state["input_dt_unplanned"] = downtime_unplanned_raw
+    st.session_state["input_dt_planned"] = planned_downtime_raw
+    st.session_state["input_freq_breakdown"] = freq_breakdown_raw
+    st.session_state["input_total_output"] = total_output_raw
+    st.session_state["input_defect_prod"] = defect_prod_raw
+    st.session_state["input_waste_stick"] = waste_stick_raw
+
     is_valid_berat, err_berat, val_berat = validate_realtime(berat_produk_raw, "Berat Produk")
     is_valid_dtu, err_dtu, val_dt_unplanned = validate_realtime(downtime_unplanned_raw, "Downtime Tidak Terencana")
     is_valid_dtp, err_dtp, val_dt_planned = validate_realtime(planned_downtime_raw, "Planned Downtime")
@@ -240,7 +247,7 @@ if submit_button:
     if errors:
         for err in errors:
             st.error(err)
-        st.warning("⚠️ **Data Anda tetap tersimpan di kolom.** Silakan perbaiki rumus yang salah di atas, lalu klik Simpan kembali.")
+        st.warning("⚠️ **Data Anda tetap tersimpan di kolom.** Silakan perbaiki kesalahan penulisan rumus di atas, lalu klik Simpan kembali.")
     else:
         if selected_product == "Other (Lainnya...)":
             final_product_name = custom_product_name.strip()
@@ -270,7 +277,7 @@ if submit_button:
 
                     if is_duplicate:
                         st.error(f"⛔ **Data Ganda Ditolak!** Laporan untuk **{target_line}** pada tanggal **{target_tgl}** sudah pernah diinput sebelumnya.")
-                        st.info("💡 Data Anda tidak hilang. Silakan ganti Line/Tanggal atau hapus baris lama di Google Sheets.")
+                        st.info("💡 Data Anda tidak terhapus. Silakan ganti Line/Tanggal atau hapus baris lama di Google Sheets.")
                     else:
                         new_row = [
                             str(tgl),
@@ -281,14 +288,14 @@ if submit_button:
                             int(val_dt_planned),
                             int(val_output),
                             int(val_defect),
-                            "",  # Kolom I dikosongkan untuk ARRAYFORMULA
+                            "", 
                             int(val_waste),
                             int(val_freq_breakdown)
                         ]
                         
                         sheet.append_row(new_row, value_input_option="USER_ENTERED")
                         
-                        # BARU DIRESET JIKA BERHASIL SIMPAN:
+                        # BERHASIL -> Kosongkan input state
                         reset_form_inputs()
                         st.session_state.success_message = f"✅ Data tanggal {tgl} untuk {line} ({final_product_name}) berhasil disimpan!"
                         st.rerun()
