@@ -85,19 +85,16 @@ PRODUCT_DATABASE = {
     "Choco Malt": "38",
 }
 
-# Inisialisasi Session State untuk setiap input form agar sinkron
-if "dt_unplanned" not in st.session_state:
-    st.session_state.dt_unplanned = "0"
-if "dt_planned" not in st.session_state:
-    st.session_state.dt_planned = "0"
-if "freq_breakdown" not in st.session_state:
-    st.session_state.freq_breakdown = "0"
-if "total_output" not in st.session_state:
-    st.session_state.total_output = "0"
-if "defect_prod" not in st.session_state:
-    st.session_state.defect_prod = "0"
-if "waste_stick" not in st.session_state:
-    st.session_state.waste_stick = "0"
+# Inisialisasi Session State untuk form_data agar aman dan tidak bentrok dengan widget key
+if "form_data" not in st.session_state:
+    st.session_state.form_data = {
+        "dt_unplanned": "0",
+        "dt_planned": "0",
+        "freq_breakdown": "0",
+        "total_output": "0",
+        "defect_prod": "0",
+        "waste_stick": "0"
+    }
 
 if "selected_product" not in st.session_state:
     st.session_state.selected_product = "CCL"
@@ -182,31 +179,31 @@ with col2:
     line = st.selectbox("Line Production", [f"Line {i}" for i in range(1, 7)])
     berat_produk_raw = st.text_input("Berat Produk (gram)", value=st.session_state.berat_input)
 
-# FORM INPUT (Menggunakan key langsung agar tersinkronisasi otomatis dengan session_state)
+# FORM INPUT (Mengambil nilai dari st.session_state.form_data)
 with st.form(key="oee_input_form", clear_on_submit=False):
     st.subheader("⏱️ Waktu Operasional & Downtime (Menit)")
     col3, col4, col5 = st.columns(3)
 
     with col3:
-        downtime_unplanned_raw = st.text_input("Downtime Tidak Terencana", key="dt_unplanned", help="Contoh: 30+15+10 atau 0")
+        downtime_unplanned_raw = st.text_input("Downtime Tidak Terencana", value=st.session_state.form_data["dt_unplanned"], help="Contoh: 30+15+10 atau 0")
 
     with col4:
-        planned_downtime_raw = st.text_input("Planned Downtime", key="dt_planned", help="Contoh: 60+60 atau 0")
+        planned_downtime_raw = st.text_input("Planned Downtime", value=st.session_state.form_data["dt_planned"], help="Contoh: 60+60 atau 0")
 
     with col5:
-        freq_breakdown_raw = st.text_input("Frekuensi Breakdown (kali)", key="freq_breakdown", help="Contoh: 1+2 atau 0")
+        freq_breakdown_raw = st.text_input("Frekuensi Breakdown (kali)", value=st.session_state.form_data["freq_breakdown"], help="Contoh: 1+2 atau 0")
 
     st.subheader("📦 Output Produksi & Waste Material (Pcs)")
     col6, col7, col8 = st.columns(3)
 
     with col6:
-        total_output_raw = st.text_input("Output Produksi", key="total_output", help="Contoh: (1000*10)+(500*2) atau 0")
+        total_output_raw = st.text_input("Output Produksi", value=st.session_state.form_data["total_output"], help="Contoh: (1000*10)+(500*2) atau 0")
 
     with col7:
-        defect_prod_raw = st.text_input("Defect Produksi", key="defect_prod", help="Contoh: 50+25 atau 0")
+        defect_prod_raw = st.text_input("Defect Produksi", value=st.session_state.form_data["defect_prod"], help="Contoh: 50+25 atau 0")
 
     with col8:
-        waste_stick_raw = st.text_input("Waste Stick", key="waste_stick", help="Contoh: 100+40 atau 0")
+        waste_stick_raw = st.text_input("Waste Stick", value=st.session_state.form_data["waste_stick"], help="Contoh: 100+40 atau 0")
 
     st.markdown("---")
     submit_button = st.form_submit_button("🚀 Simpan Data Laporan", use_container_width=True)
@@ -218,6 +215,14 @@ if "success_message" in st.session_state:
 
 # 6. Eksekusi Validasi Rumus, Cek Duplikasi, & Simpan Data Saat Tombol Diklik
 if submit_button:
+    # Simpan inputan user ke session_state form_data agar tidak hilang jika terjadi error validasi atau duplikasi
+    st.session_state.form_data["dt_unplanned"] = downtime_unplanned_raw
+    st.session_state.form_data["dt_planned"] = planned_downtime_raw
+    st.session_state.form_data["freq_breakdown"] = freq_breakdown_raw
+    st.session_state.form_data["total_output"] = total_output_raw
+    st.session_state.form_data["defect_prod"] = defect_prod_raw
+    st.session_state.form_data["waste_stick"] = waste_stick_raw
+
     is_valid_berat, err_berat, val_berat = validate_realtime(berat_produk_raw, "Berat Produk")
     is_valid_dtu, err_dtu, val_dt_unplanned = validate_realtime(downtime_unplanned_raw, "Downtime Tidak Terencana")
     is_valid_dtp, err_dtp, val_dt_planned = validate_realtime(planned_downtime_raw, "Planned Downtime")
@@ -288,14 +293,15 @@ if submit_button:
                         
                         sheet.append_row(new_row, value_input_option="USER_ENTERED")
                         
-                        # BERHASIL -> Reset SEMUA field form serentak kembali ke "0"
-                        st.session_state.dt_unplanned = "0"
-                        st.session_state.dt_planned = "0"
-                        st.session_state.freq_breakdown = "0"
-                        st.session_state.total_output = "0"
-                        st.session_state.defect_prod = "0"
-                        st.session_state.waste_stick = "0"
-
+                        # BERHASIL -> Reset SEMUA kolom input form serentak kembali ke "0"
+                        st.session_state.form_data = {
+                            "dt_unplanned": "0",
+                            "dt_planned": "0",
+                            "freq_breakdown": "0",
+                            "total_output": "0",
+                            "defect_prod": "0",
+                            "waste_stick": "0"
+                        }
                         st.session_state.success_message = f"✅ Data tanggal {tgl} untuk {line} ({final_product_name}) berhasil disimpan!"
                         st.rerun()
 
